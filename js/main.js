@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const { views, CV, SITE } = App;
+  const { views, SITE } = App;
   const main = document.getElementById("konten");
   let filter = "all", hfilter = "all";
 
@@ -46,13 +46,6 @@
       hfilter = t.dataset.hfilter;
       document.querySelectorAll("[data-hfilter]").forEach((c) => c.setAttribute("aria-pressed", String(c === t)));
       document.getElementById("timeline").innerHTML = views.timeline(hfilter);
-    }
-    else if (t.hasAttribute("data-print")) window.print();
-    else if (t.hasAttribute("data-pdf")) {
-      const old = document.title;
-      document.title = `CV - ${CV.name}`;           /* menjadi nama file PDF yang disarankan */
-      window.addEventListener("afterprint", () => { document.title = old; }, { once: true });
-      window.print();
     }
   });
 

@@ -108,13 +108,11 @@ App.views = (() => {
     const first = sorted[sorted.length - 1], last = sorted[0];
     const chips = [{ id: "all", name: "Semua" }, ...GROUPS].map((g) =>
       `<button type="button" class="chip" data-hfilter="${g.id}" aria-pressed="${g.id === active}">${g.name}</button>`).join("");
-    const stats = GROUPS.map((g) => `<li><strong>${ARTICLES.filter((a) => a.group === g.id).length}</strong> ${g.name}</li>`).join("");
     return `
       <section class="page-head">
         <h1>Histori menulis</h1>
         <p>Jejak tulisan saya dari waktu ke waktu, disusun dari yang terbaru. ${ARTICLES.length} tulisan sejak ${fmt(first.date, { month: "long", year: "numeric" })}, terakhir terbit ${fmt(last.date)}.</p>
       </section>
-      <ul class="stats" aria-label="Jumlah tulisan per kelompok">${stats}</ul>
       <div class="filters" role="group" aria-label="Filter histori menurut kelompok">${chips}</div>
       <div id="timeline" class="timeline" aria-live="polite">${timeline(active)}</div>`;
   }
@@ -123,13 +121,6 @@ App.views = (() => {
   function cv() {
     const s = CV;
     return `
-      <div class="cv-bar no-print">
-        <p>Format satu kolom dengan teks biasa agar terbaca sistem ATS. Saat mencetak, tampilan otomatis menjadi putih bersih.</p>
-        <div class="cv-actions">
-          <button type="button" class="btn" data-print>Cetak</button>
-          <button type="button" class="btn primary" data-pdf>Unduh PDF</button>
-        </div>
-      </div>
       <article class="cv" id="cv">
         <header>
           <h1>${s.name}</h1>
