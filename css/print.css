@@ -1,0 +1,17 @@
+/* Hanya dipakai saat mencetak / simpan PDF: CV putih bersih standar ATS */
+@page { size: A4; margin: 16mm; }
+html, body { background: #fff !important; color: #000 !important; }
+body { font: 11pt/1.4 Arial, Helvetica, sans-serif; }
+.skip, .site-header, .site-footer, .cv-bar, .no-print { display: none !important; }
+.wrap { width: 100% !important; margin: 0 !important; }
+main { padding: 0 !important; }
+.cv { max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff !important; color: #000 !important; font-size: 11pt; }
+.cv h1 { font-size: 20pt; color: #000; }
+.cv .role { font-size: 12pt; color: #000; }
+.cv .contact, .cv .when { color: #000 !important; font-size: 10pt; }
+.cv h2 { font-size: 12pt; color: #000; border-bottom: 1px solid #000; text-transform: none; }
+.cv h3 { color: #000; }
+.cv a { color: #000; text-decoration: none; }
+.cv section, .cv .job { break-inside: avoid; }
+/* Jika yang dicetak bukan halaman CV, tampilkan seperlunya dalam hitam-putih */
+.post, .prose, .card { background: #fff !important; color: #000 !important; border-color: #999 !important; }
