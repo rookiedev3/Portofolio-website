@@ -11,89 +11,161 @@ App.GROUPS = [
 ];
 
 App.ARTICLES = [
-  { slug: "api-go-yang-mudah-dirawat", group: "backend", date: "2026-10-04",
-    title: "Struktur proyek API Go yang mudah dirawat",
-    excerpt: "Pisahkan handler, layanan, dan penyimpanan sejak awal agar proyek kecil tidak berubah menjadi kusut.",
-    body: `<p>Proyek Go sering dimulai dari satu file <code>main.go</code>. Itu wajar, tetapi begitu endpoint bertambah, logika bisnis ikut menumpuk di handler.</p>
-<h2>Tiga lapisan sederhana</h2>
-<ul><li><strong>Handler</strong> membaca request dan menulis response.</li><li><strong>Service</strong> berisi aturan bisnis.</li><li><strong>Repository</strong> berbicara dengan basis data.</li></ul>
-<pre><code>type UserRepo interface {
-    FindByID(ctx context.Context, id int64) (*User, error)
+  { slug: "load-balancer-nginx-docker-compose", group: "devops", date: "2026-06-15",
+    title: "Mencoba Membuat Load Balancer Menggunakan Nginx untuk Meningkatkan Performa Web Server",
+    excerpt: "Ketika jumlah pengguna sebuah website semakin bertambah, beban kerja web server menjadi lebih berat. Ketika beban kerja melebihi batas dari kemampuan web server bisa menyebabkan website terasa lambat bahkan bisa membuat server down.",
+    body: `<p>Ketika jumlah pengguna sebuah website semakin bertambah, beban kerja web server menjadi lebih berat. Ketika beban kerja melebihi batas dari kemampuan web server bisa menyebabkan website terasa lambat bahkan bisa membuat server down.</p>
+<p>Salah satu solusi yang efektif untuk menangani lonjakan beban kerja web server bisa menggunakan load balancer untuk menyebarkan beban ke beberapa web server. Load balancer berfungsi untuk menyebarkan beban secara merata ke beberapa web server. Percobaan kali ini saya akan menggunakan nginx sebagai load balancer, yang terkenal ringan dan stabil, untuk mendistribusikan beban kerja ke web nodejs di dalam docker-compose.</p>
+<h2>Strategi arsitektur</h2>
+<p>kita akan membuat docker compose dengan struktur seperti berikut:</p>
+<ul><li>3 container nodejs: Bertindak sebagai backend server.</li><li>1 container nginx: Bertindak load balancer.</li><li>1 docker network: Berfungsi untuk menyambungkan semua container dan menjaga keamanan dari akses luar yang tidak diinginkan.</li></ul>
+<p>Supaya manajemen file rapi saya menulis file secara terstruktur, Berikut struktur file yang akan dibuat:</p>
+<pre><code>load-balancer/
+├── docker-compose.yml
+├── nginx-lb
+│   ├── conf.d
+│   │   └── default.conf
+│   └── Dockerfile
+└── web-app
+    ├── Dockerfile
+    ├── .dockerignore
+    ├── index.js
+    ├── node_modules
+    ├── package.json
+    └── package-lock.json</code></pre>
+<h2>1. Membuat direktori web</h2>
+<p>Buat direktori untuk membuat image web-app sederhana terlebih dahulu.</p>
+<pre><code>$ mkdir web-app &amp;&amp; cd web-app</code></pre>
+<h2>1. Membuat aplikasi</h2>
+<p>Selanjutnya kita membuat file index.js untuk web-appnya. Pada variable NUMBER akan menjadi pembeda pada setiap continer. Variable NUMBER akan mengambil nilai dari ENV docker compose. Berikut isi file index.js:</p>
+<pre><code>const express = require('express');
+
+// Env
+const PORT = 8080
+const NUMBER = process.env.NUMBER || 1;
+
+// App
+const app = express();
+app.get('/', (req, res) =&gt; {
+  res.send(\`&lt;h1&gt;Hello from container number \${NUMBER}&lt;/h1&gt;\`);
+});
+
+app.listen(PORT, () =&gt; {
+  console.log(\`Running on http://localhost:\${PORT}\`);
+});</code></pre>
+<p>Lanjut dengan menuliskan <code>package.json</code>-nya.</p>
+<pre><code>{
+  "name": "docker_web_app",
+  "version": "1.0.0",
+  "description": "Node.js simple web",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "mkdir -p dist &amp;&amp; cp index.js dist/"
+  },
+  "dependencies": {
+    "express": "^4.16.1"
+  }
+}</code></pre>
+<p>Jalankan command <code>npm install,</code> npm install berfungsi untuk mendownload semua library yang dibutuhkan.</p>
+<pre><code>$ npm install</code></pre>
+<p>Buat Dockerfile untuk membuat web-app image.</p>
+<pre><code>FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev &amp;&amp; npm cache clean --force
+COPY --from=builder /app/dist ./dist
+EXPOSE 8080
+USER node
+CMD  ["node", "dist/index.js"]</code></pre>
+<p>Buat.dockerignore file untuk memberi tahu docker file dan direktori mana saja yang tidak masuk kedalam docker build.</p>
+<pre><code>node_modules
+npm-debug.log</code></pre>
+<p>Jalankan command build docker untuk menjalankan build image untuk web-app.</p>
+<pre><code>$ docker build -t web-app .</code></pre>
+<p>Buat direktori load balancer untuk menyimpan semua file yang diperlukan untuk load balancer. Tambah direktori conf.d untuk direktori konfigurasi nginx.</p>
+<pre><code>$ cd ..
+$ mkdir nginx-lb &amp;&amp; cd nginx-lb
+$ mkdir conf.d &amp;&amp; cd conf.d</code></pre>
+<p>Buat file default.conf untuk konfigurasi loadbalancer.</p>
+<pre><code>upstream backend {
+    server web1:8080;
+    server web2:8080;
+    server web3:8080;
 }
 
-type UserService struct{ repo UserRepo }</code></pre>
-<p>Dengan antarmuka kecil seperti ini, layanan bisa diuji tanpa basis data sungguhan.</p>` },
-  { slug: "n-plus-satu-di-laravel", group: "backend", date: "2026-09-26",
-    title: "Mengenali dan memperbaiki query N+1 di Laravel",
-    excerpt: "Satu halaman bisa menjalankan ratusan query tanpa terlihat. Eager loading biasanya cukup untuk menyelesaikannya.",
-    body: `<p>Masalah N+1 muncul ketika relasi diakses di dalam perulangan. Setiap iterasi memicu satu query tambahan.</p>
-<h2>Sebelum dan sesudah</h2>
-<pre><code>// N+1
-$posts = Post::all();
-foreach ($posts as $p) { echo $p->author->name; }
+server {
+    listen 80;
+    location / {
+        proxy_pass http://backend;
+    }
+}</code></pre>
+<p>kembali ke direktori nginx-lb lalu buat Dockefile.</p>
+<pre><code>FROM nginx:alpine
+RUN rm /etc/nginx/conf.d/default.conf
+COPY conf.d/ /etc/nginx/conf.d/
+CMD ["nginx", "-g", "daemon off;"]</code></pre>
+<p>Jalankan command build docker untuk menjalankan build image untuk nginx-lb.</p>
+<pre><code>$ docker build -t nginx-lb .</code></pre>
+<p>Kembali ke direktori load-balancer lalu buat docker compose.yml</p>
+<pre><code>version: '3.8'
+services:
+  web-app1:
+    image: "web-app"
+    environment:
+      NUMBER : 1
+    container_name: web1
+    networks:
+      - backend-network
 
-// 2 query saja
-$posts = Post::with('author')->get();</code></pre>
-<p>Aktifkan <code>Model::preventLazyLoading()</code> di lingkungan pengembangan agar masalah ini ketahuan sejak dini.</p>` },
-  { slug: "dockerfile-multi-stage", group: "devops", date: "2026-09-20",
-    title: "Dockerfile multi-stage untuk aplikasi Go",
-    excerpt: "Image akhir bisa mengecil dari ratusan megabyte menjadi belasan megabyte dengan memisahkan tahap build dan runtime.",
-    body: `<p>Tahap build membutuhkan compiler, tetapi tahap runtime tidak. Multi-stage build memisahkan keduanya.</p>
-<pre><code>FROM golang:1.23 AS build
-WORKDIR /src
-COPY . .
-RUN CGO_ENABLED=0 go build -o /app ./cmd/api
+  web-app2:
+    image: "web-app"
+    container_name: web2
+    environment:
+      NUMBER : 2
+    networks:
+      - backend-network
 
-FROM gcr.io/distroless/static
-COPY --from=build /app /app
-USER nonroot
-ENTRYPOINT ["/app"]</code></pre>
-<p>Hasilnya image yang kecil, lebih cepat ditarik, dan memiliki permukaan serangan lebih sempit.</p>` },
-  { slug: "podman-tanpa-daemon", group: "devops", date: "2026-08-29",
-    title: "Podman rootless: kontainer tanpa daemon",
-    excerpt: "Menjalankan kontainer sebagai pengguna biasa mengurangi risiko, dan perintahnya hampir sama dengan Docker.",
-    body: `<p>Podman tidak membutuhkan daemon yang berjalan sebagai root. Setiap kontainer adalah proses biasa milik pengguna.</p>
-<pre><code>podman run -d --name web -p 8080:80 docker.io/library/nginx
-podman ps
-podman generate systemd --new --name web</code></pre>
-<p>Perintah terakhir menghasilkan unit systemd, sehingga kontainer bisa dikelola seperti layanan Linux lainnya.</p>` },
-  { slug: "systemd-service-sendiri", group: "linux", date: "2026-09-14",
-    title: "Membuat service systemd untuk aplikasi sendiri",
-    excerpt: "Satu file unit sudah cukup agar aplikasi berjalan otomatis, dimulai ulang saat gagal, dan mudah dipantau lognya.",
-    body: `<p>Daripada menjalankan aplikasi di dalam <code>screen</code>, serahkan pengelolaannya ke systemd.</p>
-<pre><code>[Unit]
-Description=API Saya
-After=network.target
+  web-app3:
+    image: "web-app"
+    container_name: web3
+    environment:
+      NUMBER : 3
+    networks:
+      - backend-network
 
-[Service]
-ExecStart=/opt/api/app
-Restart=on-failure
-User=api
+  nginx-lb:
+    image: "nginx-lb"
+    container_name: nginx
+    ports:
+      - "8080:80"
+    networks:
+      - backend-network
+    depends_on:
+      - web-app1
+      - web-app2
+      - web-app3
 
-[Install]
-WantedBy=multi-user.target</code></pre>
-<p>Aktifkan dengan <code>systemctl enable --now api</code> dan lihat log melalui <code>journalctl -u api -f</code>.</p>` },
-  { slug: "izin-file-linux", group: "linux", date: "2026-08-17",
-    title: "Memahami izin file Linux tanpa menghafal angka",
-    excerpt: "Angka 755 dan 644 mudah dipahami jika Anda tahu bahwa setiap digit hanyalah tiga bit.",
-    body: `<p>Izin file dibagi menjadi tiga kelompok: pemilik, grup, dan lainnya. Masing-masing punya bit baca (4), tulis (2), dan eksekusi (1).</p>
-<h2>Contoh</h2>
-<ul><li><code>755</code>: pemilik penuh, lainnya hanya baca dan eksekusi.</li><li><code>644</code>: pemilik baca-tulis, lainnya hanya baca.</li><li><code>600</code>: hanya pemilik, cocok untuk kunci privat.</li></ul>
-<p>Prinsipnya sederhana: beri izin sesempit mungkin.</p>` },
-  { slug: "membaca-load-average", group: "systems", date: "2026-09-08",
-    title: "Cara membaca load average dengan benar",
-    excerpt: "Angka load tidak berarti apa-apa sebelum dibandingkan dengan jumlah inti CPU.",
-    body: `<p>Perintah <code>uptime</code> menampilkan tiga angka: rata-rata beban selama 1, 5, dan 15 menit terakhir.</p>
-<p>Pada mesin 4 inti, load 4,0 berarti CPU terpakai penuh. Load 8,0 berarti ada antrean proses yang menunggu giliran.</p>
-<h2>Langkah pemeriksaan</h2>
-<ul><li>Bandingkan load dengan jumlah inti dari <code>nproc</code>.</li><li>Cek apakah penyebabnya CPU atau I/O dengan <code>top</code>.</li><li>Lihat tren 15 menit untuk membedakan lonjakan sesaat dari masalah menetap.</li></ul>` },
-  { slug: "dns-dan-latensi", group: "systems", date: "2026-07-30",
-    title: "Kenapa DNS sering menjadi biang latensi",
-    excerpt: "Sebelum koneksi pertama dibuat, aplikasi harus menerjemahkan nama menjadi alamat. Langkah ini mudah terlewat saat debugging.",
-    body: `<p>Banyak keluhan \"aplikasi lambat\" ternyata berasal dari resolusi DNS yang tersendat, bukan dari kode.</p>
-<pre><code>dig example.com +stats
-curl -w "dns: %{time_namelookup}s\\n" -o /dev/null -s https://example.com</code></pre>
-<p>Jika waktu lookup mencapai ratusan milidetik, periksa resolver, cache lokal, dan pengaturan TTL sebelum menyentuh aplikasi.</p>` }
+networks:
+  backend-network:
+    driver: bridge</code></pre>
+<p>Jalankan command docker compose up -d untuk menjalankan file docker compose.</p>
+<pre><code>$ docker compose up -d</code></pre>
+<p>Setelah docker compose sudah berjalan, loadbalancer bisa diakses lewat browser dengan url http://localhost:8080. refresh halaman beberapa kali. Perhatikan angka container number yang muncul. Jika angkanya berubah-ubah (1, 2, 3), artinya Load Balancer berhasil.</p>
+<p>Load balancer juga bisa diakses lewat terminal dengan command curl http://localhost:8080</p>
+<pre><code>$ curl http://localhost:8080
+&lt;h1&gt;Hello from container number 1&lt;/h1&gt;
+$ curl http://localhost:8080
+&lt;h1&gt;Hello from container number 2&lt;/h1&gt;
+$ curl http://localhost:8080
+&lt;h1&gt;Hello from container number 3&lt;/h1&gt;</code></pre>` }
 ];
 
 /* Data CV: tulis dengan teks biasa agar terbaca mesin ATS. */
